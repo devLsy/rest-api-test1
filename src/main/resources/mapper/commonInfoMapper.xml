@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="study.dev.ssrmbrlsy.mapper.CommonInfoMapper">
+
+	<!--1단계 전체 지역 검색-->
+	<select id="selectRegionsList" resultType="study.dev.ssrmbrlsy.vo.hr.RegionsVo">
+		SELECT REGION_ID AS regionId
+		     , REGION_NAME AS regionName
+          FROM REGIONS
+		 ORDER BY REGION_ID
+	</select>
+
+	<!--2단계 나라 검색-->
+	<select id="selectContriesList" resultType="study.dev.ssrmbrlsy.vo.hr.RegionsVo">
+		SELECT A.REGION_ID AS regionId
+		     , A.REGION_NAME AS regionName
+		     , B.COUNTRY_ID AS countryId
+		     , B.COUNTRY_NAME AS countryName
+		  FROM REGIONS A
+		     , COUNTRIES B
+		 WHERE 1=1
+		   AND A.REGION_ID = B.REGION_ID
+		 ORDER BY A.REGION_ID, B.COUNTRY_ID
+	</select>
+
+	<!--3단계 location 검색-->
+	<select id="selectLocationsList" resultType="study.dev.ssrmbrlsy.vo.hr.RegionsVo">
+		SELECT A.REGION_ID AS regionId
+		     , A.REGION_NAME AS regionName
+		     , B.COUNTRY_ID AS countryId
+		     , B.COUNTRY_NAME countryName
+		     , NVL(C.LOCATION_ID ,0) AS locationId
+		     , C.CITY AS city
+		     , C.STREET_ADDRESS AS streetAddress
+		     , C.POSTAL_CODE AS postalCode
+		     , C.STATE_PROVINCE AS stateProvince
+		  FROM REGIONS A
+		     , COUNTRIES B
+		     , LOCATIONS C
+		 WHERE 1=1
+		   AND A.REGION_ID = B.REGION_ID(+)
+		   AND B.COUNTRY_ID = C.COUNTRY_ID(+)
+		 ORDER BY A.REGION_ID, B.COUNTRY_ID, C.LOCATION_ID
+	</select>
+
+	<!--4단계 부서 검색-->
+	<select id="selectDeptList" resultType="study.dev.ssrmbrlsy.vo.hr.RegionsVo">
+		SELECT A.REGION_ID AS regionId
+			 , A.REGION_NAME AS regionName
+			 , B.COUNTRY_ID AS countryId
+			 , B.COUNTRY_NAME AS countryName
+			 , NVL(C.LOCATION_ID ,0) AS locationId
+			 , C.CITY AS city
+		     , NVL(D.DEPARTMENT_ID,0) AS departmentId
+			 , D.DEPARTMENT_NAME AS departmentName
+		  FROM REGIONS A
+			 , COUNTRIES B
+			 , LOCATIONS C
+		     , DEPARTMENTS D
+		 WHERE 1=1
+		   AND A.REGION_ID = B.REGION_ID(+)
+		   AND B.COUNTRY_ID = C.COUNTRY_ID(+)
+		   AND C.LOCATION_ID = D.LOCATION_ID(+)
+		 ORDER BY A.REGION_ID, B.COUNTRY_ID, C.LOCATION_ID, D.DEPARTMENT_ID
+	</select>
+
+	<!--5단계 직원검색-->
+	<select id="selectEmployeeList" resultType="study.dev.ssrmbrlsy.vo.hr.RegionsVo">
+        SELECT NVL(A.REGION_ID, 0) AS regionId
+        	 , NVL(A.REGION_NAME, 'none') AS regionName
+        	 , NVL(B.COUNTRY_ID, 'none') AS countryId
+        	 , NVL(B.COUNTRY_NAME, 'none') AS countryName
+        	 , NVL(C.LOCATION_ID, 0) AS locationId
+        	 , NVL(C.CITY, 'none') AS city
+        	 , NVL(D.DEPARTMENT_ID, 0) AS departmentId
+        	 , NVL(D.DEPARTMENT_NAME, 'none') AS departmentName
+        	 , NVL(E.EMPLOYEE_ID, 0) AS employeeId
+        	 , NVL(E.FIRST_NAME || ' ' || E.LAST_NAME, 'none')  AS name
+        	 , NVL(E.EMAIL, 'none')  AS email
+        	 , NVL(E.PHONE_NUMBER, 0)  AS phoneNumber
+		     , NVL(TO_CHAR(E.HIRE_DATE,'YYYY-MM-DD'),TO_CHAR(SYSDATE,'YYYY-MM-DD')) AS hireDate
+        	 , NVL(E.SALARY, 0)  AS salary
+        	 , NVL(F.JOB_TITLE, 'none')  AS jobTitle
+		  FROM REGIONS A
+			 , COUNTRIES B
+			 , LOCATIONS C
+			 , DEPARTMENTS D
+			 , EMPLOYEES E
+			 , JOBS F
+		 WHERE 1=1
+		   AND B.REGION_ID = A.REGION_ID(+)
+		   AND C.COUNTRY_ID = B.COUNTRY_ID(+)
+		   AND D.LOCATION_ID = C.LOCATION_ID(+)
+		   AND E.DEPARTMENT_ID = D.DEPARTMENT_ID(+)
+		   AND E.JOB_ID = F.JOB_ID(+)
+		 ORDER BY A.REGION_ID, B.COUNTRY_ID, C.LOCATION_ID, D.DEPARTMENT_ID, E.EMPLOYEE_ID, F.JOB_ID
+	</select>
+
+	<!--공통 에셋 리스트-->
+	<select id="selectCmmAssetList" resultType="CommonAssetVo">
+		--공통 에셋 리스트
+		WITH ASSET_FILE_URL AS (
+			SELECT A.FILE_MNG_NO, A.FILE_NM, A.FILE_URL, ROW_NUMBER() over(PARTITION BY A.FILE_MNG_NO ORDER BY A.FILE_VER_CD DESC) AS MAX_VER
+			  FROM SSR_FILE_MNG_VER_INFO A, SSR_ASSET_MNG_INFO B
+			 WHERE A.FILE_MNG_NO = B.ASSET_FILE_NO
+		)
+		SELECT A.CMM_ASSET_DIV_CD AS cmmAssetDivCd
+		     , NVL(B.FILE_URL,'none') AS assetFileUrl
+			 , A.ASSET_MNG_SNO AS assetMngSno
+		  FROM SSR_ASSET_MNG_INFO A
+			 , ASSET_FILE_URL B
+		WHERE ASSET_TYPE_CD = '01'
+		  AND CMM_ASSET_DIV_CD IN ('01','02')
+		  AND A.ASSET_FILE_NO = B.FILE_MNG_NO(+)
+		  AND 1 = B.MAX_VER(+)
+	</select>
+
+	<!--단계공통 에셋 리스트-->
+	<select id="selectCmmLvlAssetList" resultType="CrcmResponse">
+		--단계공통 에셋(총 5개)
+		WITH ASSET_FILE_URL AS (
+			SELECT A.FILE_MNG_NO, A.FILE_NM, A.FILE_URL, ROW_NUMBER() over(PARTITION BY A.FILE_MNG_NO ORDER BY A.FILE_VER_CD DESC) AS MAX_VER
+			  FROM SSR_FILE_MNG_VER_INFO A, SSR_ASSET_MNG_INFO B
+			 WHERE A.FILE_MNG_NO = B.ASSET_FILE_NO
+		)
+		SELECT CASE WHEN A.CMM_ASSET_DIV_CD = '03' THEN '40'
+		            WHEN A.CMM_ASSET_DIV_CD = '04' THEN '30'
+		            WHEN A.CMM_ASSET_DIV_CD = '05' THEN '20'
+		            WHEN A.CMM_ASSET_DIV_CD = '06' THEN '01'
+		            WHEN A.CMM_ASSET_DIV_CD = '07' THEN '02'
+		            END AS lvlCd
+		     , NVL(B.FILE_URL,'none') AS assetFileUrl
+		     , A.ASSET_MNG_SNO AS assetMngSno
+		  FROM SSR_ASSET_MNG_INFO A
+		     , ASSET_FILE_URL B
+		 WHERE 1=1
+		   AND A.ASSET_TYPE_CD = '01'
+		   AND A.CMM_ASSET_DIV_CD IN ('03','04','05','06','07')
+<!--		   AND A.CMM_ASSET_DIV_CD = '03'-->
+		   AND A.ASSET_FILE_NO = B.FILE_MNG_NO(+)
+		   AND 1 = B.MAX_VER(+)
+		   AND A.ASSET_MNG_SNO IN (SELECT MAX(AM.ASSET_MNG_SNO)
+		                             FROM SSR_ASSET_MNG_INFO AM
+		                            WHERE AM.ASSET_TYPE_CD = A.ASSET_TYPE_CD
+		                              AND AM.CMM_ASSET_DIV_CD = A.CMM_ASSET_DIV_CD
+		                           )
+	</select>
+
+	<!--호별 커리큘럼 리스트-->
+	<select id="selectCrcmDtlList" resultType="CrcmDtlInfoResponse">
+		--호별 커리큘럼 리스트(메인도서 포함)
+		WITH BOOK_FILE_URL AS(
+		    SELECT
+		            A.FILE_MNG_NO, A.FILE_URL, ROW_NUMBER() over( PARTITION BY A.FILE_MNG_NO ORDER BY A.FILE_VER_CD desc) AS MAX_VER
+		      FROM     SSR_FILE_MNG_VER_INFO A, SSR_MAIN_BOOK_INFO B
+		     WHERE     A.FILE_MNG_NO = B.BOOK_FILE_NO
+		), BOOK_SSRC_FILE_URL AS(
+		    SELECT
+		            A.FILE_MNG_NO, A.FILE_URL, ROW_NUMBER() over( PARTITION BY A.FILE_MNG_NO ORDER BY A.FILE_VER_CD desc) AS MAX_VER
+		      FROM     SSR_FILE_MNG_VER_INFO A, SSR_MAIN_BOOK_INFO B
+		     WHERE     A.FILE_MNG_NO = B.BOOK_SSRC_FILE_NO
+		), THUMB_MAIN_FILE_URL AS(
+		    SELECT
+		            A.FILE_MNG_NO, A.FILE_URL, ROW_NUMBER() over( PARTITION BY A.FILE_MNG_NO ORDER BY A.FILE_VER_CD desc) AS MAX_VER
+		      FROM     SSR_FILE_MNG_VER_INFO A, SSR_MAIN_BOOK_INFO B
+		     WHERE     A.FILE_MNG_NO = B.THUMB_MAIN_FILE_NO
+		), THUMB_LIST_FILE_URL AS(
+		    SELECT
+		            A.FILE_MNG_NO, A.FILE_URL, ROW_NUMBER() over( PARTITION BY A.FILE_MNG_NO ORDER BY A.FILE_VER_CD desc) AS MAX_VER
+		      FROM     SSR_FILE_MNG_VER_INFO A, SSR_MAIN_BOOK_INFO B
+		     WHERE     A.FILE_MNG_NO = B.THUMB_LIST_FILE_NO
+		), BOOK_CATE_CD AS (
+			SELECT B.CMM_CD, B.CD_VAL
+			  FROM CMM_CD_GRP_INFO A, CMM_CD_INFO B
+			 WHERE A.CMM_GRP_CD = 'CMM00001'
+			   AND A.CMM_GRP_CD = B.CMM_GRP_CD
+		), ASSET_FILE_URL AS (
+			SELECT A.FILE_MNG_NO, A.FILE_NM, A.FILE_URL, ROW_NUMBER() over(PARTITION BY A.FILE_MNG_NO ORDER BY A.FILE_VER_CD DESC) AS MAX_VER
+			  FROM SSR_FILE_MNG_VER_INFO A, SSR_ASSET_MNG_INFO B
+			 WHERE A.FILE_MNG_NO = B.ASSET_FILE_NO
+		)
+		SELECT A.LVL_CD AS lvlCd
+		     , A.PGR_NO AS pgrNo
+		     , B.SSR_MAIN_BOOK_NO AS ssrMainBookNo
+		     , B.BOOK_NM AS bookNm
+		     , B.BOOK_CONT AS bookCont
+		     , B.BOOK_CATE_CD
+		     , G.CD_VAL AS bookCateNm
+		     , A.STU_TYPE_CD AS stuTypeCd
+		     , A.BOOK_TYPE_CD AS bookTypeCd
+		     , C.FILE_URL AS bookFileUrl
+		     , D.FILE_URL AS bookSsrcFileUrl
+		     , E.FILE_URL AS thumbMainFileUrl
+		     , F.FILE_URL AS thumbListFileUrl
+		     , B.RCMD_AGE_CD AS rcmdAgeCd
+		     , H.FILE_URL AS assetURL
+		     , AM.ASSET_MNG_SNO AS assetMngSno
+		  FROM SSR_CRCM_INFO A
+		     , SSR_MAIN_BOOK_INFO B
+		     , BOOK_FILE_URL C
+		     , BOOK_SSRC_FILE_URL D
+		     , THUMB_MAIN_FILE_URL E
+		     , THUMB_LIST_FILE_URL F
+		     , BOOK_CATE_CD G
+		     , SSR_ASSET_MNG_INFO AM
+		     , ASSET_FILE_URL H
+		 WHERE 1=1
+		   AND A.STU_TYPE_CD = '01'
+		   AND A.SSR_BOOK_NO = B.SSR_MAIN_BOOK_NO(+)
+		   AND B.BOOK_FILE_NO = C.FILE_MNG_NO(+)
+		   AND 1 = C.MAX_VER(+)
+		   AND B.BOOK_SSRC_FILE_NO = D.FILE_MNG_NO(+)
+		   AND 1 = D.MAX_VER(+)
+		   AND B.THUMB_MAIN_FILE_NO = E.FILE_MNG_NO(+)
+		   AND 1 = E.MAX_VER(+)
+		   AND B.THUMB_LIST_FILE_NO = F.FILE_MNG_NO(+)
+		   AND 1 = F.MAX_VER(+)
+		   AND B.BOOK_CATE_CD = G.CMM_CD(+)
+		   AND A.LVL_CD = AM.LVL_CD(+)
+		   AND A.PGR_NO = AM.PGR_NO(+)
+		   AND AM.ASSET_TYPE_CD(+) = '04'
+		   AND AM.CMM_ASSET_DIV_CD(+) IN ('03','04','05','06','07')
+		   AND AM.ASSET_FILE_NO = H.FILE_MNG_NO(+)
+		   AND 1 = H.MAX_VER(+)
+		 ORDER BY A.LVL_CD, A.PGR_NO
+	</select>
+
+	<!--에셋 정보 리스트-->
+	<select id="selectAssetInfoList" resultType="AssetInfoVo">
+		--어셋정보리스트
+		WITH ASSET_FILE_URL AS (
+			select A.FILE_MNG_NO, A.FILE_NM, A.FILE_URL, ROW_NUMBER() over(PARTITION BY A.FILE_MNG_NO ORDER BY A.FILE_VER_CD DESC) AS FILE_VER
+			  FROM SSR_FILE_MNG_VER_INFO A, SSR_ASSET_MNG_INFO B
+			 WHERE A.FILE_MNG_NO = B.ASSET_FILE_NO
+		)
+		SELECT A.LVL_CD AS lvlCd
+		     , A.PGR_NO AS pgrNo
+		     , A.ASSET_TYPE_CD AS assetTypeCd
+		     , A.ACT_NM AS actNm
+		     , B.FILE_URL AS assetFileUrl
+		     , A.ASSET_MNG_SNO AS assetMngSno
+		  FROM SSR_ASSET_MNG_INFO A
+		     , ASSET_FILE_URL B
+		 WHERE A.ASSET_FILE_NO = B.FILE_MNG_NO(+)
+		   AND 1 = B.FILE_VER(+)
+		   AND A.CMM_ASSET_DIV_CD in('03','04','05','06','07')
+		   AND A.ASSET_TYPE_CD IN ('03','04','05','06','07')
+		 ORDER BY A.LVL_CD, A.PGR_NO
+	</select>
+
+</mapper>
